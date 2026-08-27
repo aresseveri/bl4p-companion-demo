@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "bl4p-companion-demo",
+    "name": "BestLife4Pets",
     "slug": "bl4p-companion-demo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "bl4pcompaniondemo",
-    "userInterfaceStyle": "automatic",
+    "scheme": "bl4p",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -20,23 +20,17 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
-    }
+      "baseUrl": "/bl4p-companion-demo"
+    },
+    "backgroundColor": "#FCFAF9"
   }
 }
