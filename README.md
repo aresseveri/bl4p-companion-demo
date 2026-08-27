@@ -9,12 +9,61 @@ push scheduling, no email export. All state is local.
 
 ---
 
+## App Store readiness
+
+Built against the two guidelines that actually threaten an app like this.
+
+**4.2 minimum functionality** ("why is this an app and not a website?"):
+
+| Feature | Where |
+|---|---|
+| Local daily dose reminders, scheduled by the OS | `lib/reminders.ts`, Dose screen |
+| Multiple pets per household, separate schedules | pet switcher on Home |
+| Weight history tied to the label's dose band | Health log |
+| Vet notes | Health log |
+| Camera capture for progress photos | Onboarding, Progress |
+| OS share sheet to send a before/after to a vet | Progress |
+| Bottle barcode scanner | `/scan` |
+| Home screen widget, Siri shortcut | More tab |
+
+**5.1.1(v) personal information**: the app no longer gates on email. Onboarding
+runs first, the email is asked **last**, after the label dose has been shown,
+and it is **skippable**. The app is fully usable without one.
+
+**1.4.1 medical**: a first-run notice says plainly that this shows the dosing
+printed on the label, is not veterinary advice, and cannot diagnose. Her
+position on dosage calculators is strong anyway, since Apple requires them to
+come from the manufacturer and she is the manufacturer.
+
+### What is real vs previewed in the web demo
+
+Reminders, camera, share, multi-pet, health log and the manual remedy picker
+all work in the web build. Three things cannot exist in a browser and are
+labelled as installed-app features rather than faked:
+
+- **Home screen widget** — drawn as a preview on the More tab.
+- **Siri shortcut** — shown as a card on the More tab.
+- **Barcode decoding** — the scanner screen explains this and offers a manual
+  picker, so it is never a dead end. `lib/scan.ts` holds an empty GTIN table;
+  fill it from the bottles and scanning starts working with no other change.
+
+Notifications are a partial case: on device they are real scheduled daily
+triggers, on web the browser cannot schedule so the app fires one immediately
+and says so.
+
+**Offline**: the dose logic, history, notes and photos are all local and work
+with no connection. Product imagery and her brand fonts still come from her
+CDN, so a first load needs the network.
+
 ## Before the call: swap in the founder's pet
 
-One file: [`src/constants/demo.ts`](src/constants/demo.ts). Three things are
-marked `<-- SWAP`:
+One file: [`src/constants/demo.ts`](src/constants/demo.ts). Things marked
+`<-- SWAP`:
 
-1. `DEMO_PET` — name, species, breed, weight, birth year, photo, which SKU.
+1. `DEMO_PETS` — an array. Name, species, breed, weight, birth year, photo,
+   SKU, reminder time, history, weights and vet notes per pet. The seed has
+   two (a dog on WALK-EASY and a cat on Cat Allergy) to show the household
+   case; cut it to one if that reads cleaner on the call.
 2. `DEMO_OWNER_FIRST_NAME` — used in the Home greeting.
 3. `DEMO_PROGRESS` — the progress photos, plus `DEMO_PET.photo`. **Still the
    highest-value edit.** These are four AI-generated photos of one invented
