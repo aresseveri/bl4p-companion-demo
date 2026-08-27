@@ -1,46 +1,6 @@
 /*
- * Page-level styling only.
- *
- * Her brand fonts (Futura, Helvetica Neue, Jost) are her own self-hosted
- * woff2 files, bundled from bestlife4pets.com and registered through
- * expo-font in lib/fonts.ts. Metro cannot resolve local url() inside CSS,
- * so they must not be declared here.
+ * Page-level styling lives in public/index.html, which is the HTML shell for
+ * the single-page web export. Her brand @font-face rules are declared there
+ * too, pointing at her own CDN. This file is kept only because the router
+ * entry imports it.
  */
-
-/*
- * Phone-shaped canvas.
- *
- * The export is opened on a phone, but she may well open the link on a
- * laptop first. On a wide viewport this centres the app in a phone-width
- * column against her page ground so it still reads as an app, not a
- * stretched website.
- */
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  background: #f7f5f6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-body {
-  overscroll-behavior-y: none;
-}
-
-/* Keep the app column phone-width on desktop. */
-@media (min-width: 560px) {
-  #root {
-    max-width: 440px;
-    margin: 0 auto;
-    box-shadow: 0 5px 30px rgb(26 26 26 / 0.1);
-    background: #fcfaf9;
-  }
-}
-
-/* No focus rings on touch, but keep them for keyboard users. */
-:focus:not(:focus-visible) {
-  outline: none;
-}
