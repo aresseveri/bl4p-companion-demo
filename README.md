@@ -107,6 +107,22 @@ Everything was pulled from her live site on 2026-08-27. Nothing is invented.
    product page, which works today. Paste real listing URLs in and the CTA
    switches to "Buy on Amazon" automatically.
 
+### About the email consent
+
+Screen one uses **implied consent**: no checkbox, and continuing accepts the
+terms, which are stated at the point of entry with links to her real Terms and
+Privacy Policy pages. `marketingOptIn` is recorded as `true` on continue.
+
+Worth raising with her before the real build: this is fine under **CAN-SPAM**
+in the US, which requires honest headers, a working unsubscribe and a physical
+address, but does not require opt-in. It is **not** sufficient under **GDPR/UK
+PECR**, **CASL** in Canada, or the **Australian Spam Act**, which all require
+consent that is specific and unbundled. Her storefront has a currency selector
+for AU, CA, NZ, UK and US, so she has customers in every one of those regimes.
+The usual fix is to show the checkbox only to non-US visitors, or to collect
+consent per region at send time in the ESP. That is a real-build decision, not
+a demo one.
+
 ### About the fonts
 
 Futura and Helvetica Neue are commercial faces she licenses and self-hosts.

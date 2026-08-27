@@ -11,8 +11,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -31,6 +31,10 @@ const LOGO = require('../../assets/brand/logo-horizontal.webp');
 const HERO =
   'https://www.bestlife4pets.com/cdn/shop/files/Picture_Hero_8f_png.jpg?v=1763029839&width=1200';
 
+/** Her real policy pages. */
+const TERMS_URL = 'https://www.bestlife4pets.com/en-us/pages/terms-of-service';
+const PRIVACY_URL = 'https://www.bestlife4pets.com/en-us/pages/privacy-policy';
+
 /** The three trust markers she leads with. Wording is hers. */
 const TRUST = brand.trust.filter((t) =>
   ['Made in USA', '60-Day Guarantee', 'Vet-Approved'].includes(t.label),
@@ -39,11 +43,13 @@ const TRUST = brand.trust.filter((t) =>
 export default function Welcome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { email, marketingOptIn, set } = useDemo();
+  const { email, set } = useDemo();
   const [focused, setFocused] = useState(false);
 
   const onContinue = () => {
-    set({ onboarded: true });
+    // Consent is implied by continuing, so it is recorded as given rather
+    // than collected from a checkbox. See the note by CONSENT_COPY below.
+    set({ onboarded: true, marketingOptIn: true });
     router.push('/pet-profile');
   };
 
@@ -106,27 +112,37 @@ export default function Welcome() {
           />
         </View>
 
-        {/* Marketing consent, unchecked by default. */}
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: marketingOptIn }}
-          onPress={() => set({ marketingOptIn: !marketingOptIn })}
-          style={styles.consent}
-          hitSlop={8}
-        >
-          <View style={[styles.box, marketingOptIn && styles.boxOn]}>
-            {marketingOptIn ? <Check /> : null}
-          </View>
-          <BLText variant="meta" style={styles.consentText}>
-            Email me care tips and offers for my pet{'’'}s health. You can
-            unsubscribe any time.
-          </BLText>
-        </Pressable>
-
         <BLButton label="Continue" onPress={onContinue} style={styles.cta} />
 
+        {/*
+          Consent is implied by continuing rather than collected from a
+          checkbox, and the terms are stated at the point of entry.
+        */}
+        <BLText variant="meta" size={12} center tone="textFaint" style={styles.consent}>
+          By continuing you agree to our{' '}
+          <BLText
+            variant="meta"
+            size={12}
+            style={styles.legalLink}
+            onPress={() => Linking.openURL(TERMS_URL)}
+          >
+            Terms
+          </BLText>{' '}
+          and{' '}
+          <BLText
+            variant="meta"
+            size={12}
+            style={styles.legalLink}
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+          >
+            Privacy Policy
+          </BLText>
+          , and to get care tips and offers for your pet by email. Unsubscribe
+          any time.
+        </BLText>
+
         <BLText variant="meta" center tone="textFaint" style={styles.noAccount}>
-          No account needed. Nothing leaves your phone.
+          No account needed.
         </BLText>
 
         {/* Trust markers, her wording. */}
@@ -148,38 +164,6 @@ export default function Welcome() {
     </KeyboardAvoidingView>
   );
 }
-
-/** Small tick, drawn rather than pulled from an icon font. */
-function Check() {
-  return (
-    <View style={checkStyles.wrap}>
-      <View style={checkStyles.short} />
-      <View style={checkStyles.long} />
-    </View>
-  );
-}
-
-const checkStyles = StyleSheet.create({
-  wrap: { width: 12, height: 12, transform: [{ rotate: '-45deg' }], marginTop: -2 },
-  short: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    width: 2,
-    height: 6,
-    backgroundColor: color.onAccent,
-    borderRadius: 1,
-  },
-  long: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    width: 11,
-    height: 2,
-    backgroundColor: color.onAccent,
-    borderRadius: 1,
-  },
-});
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.bg },
@@ -215,22 +199,9 @@ const styles = StyleSheet.create({
   },
   inputFocused: { borderColor: color.badgeBlue, borderWidth: 2 },
 
-  consent: { flexDirection: 'row', alignItems: 'flex-start', marginTop: space.x4 },
-  box: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.xs,
-    borderWidth: 2,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  boxOn: { backgroundColor: color.accent, borderColor: color.accent },
-  consentText: { flex: 1, marginLeft: space.x3 },
-
   cta: { marginTop: space.x6 },
+  consent: { marginTop: space.x4, lineHeight: 17, paddingHorizontal: space.x2 },
+  legalLink: { color: color.link, textDecorationLine: 'underline' },
   noAccount: { marginTop: space.x3 },
 
   trust: {
