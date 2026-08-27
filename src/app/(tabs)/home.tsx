@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Card, Page, Tag } from '@/components/ui/card';
+import { Card, Page } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { BLText } from '@/components/ui/text';
 import { DEMO_BOTTLE_PILLS, DEMO_BOTTLE_STARTED_DAYS_AGO } from '@/constants/demo';
@@ -24,7 +24,7 @@ import { useDemo } from '@/lib/store';
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pet, history, streak, markTodayGiven, ownerName } = useDemo();
+  const { pet, history, streak, markTodayGiven, ownerName, progress } = useDemo();
 
   /**
    * The greeting reads the clock, so the build-time HTML and the first client
@@ -44,6 +44,9 @@ export default function Home() {
   const adherence = Math.round(
     (history.filter(Boolean).length / history.length) * 100,
   );
+
+  const lastPhoto = progress.length ? progress[progress.length - 1] : null;
+  const daysSincePhoto = lastPhoto ? daysSince(lastPhoto.date) : null;
 
   const supply = daysOfSupply(dose, DEMO_BOTTLE_PILLS);
   const daysLeft = supply != null ? supply - DEMO_BOTTLE_STARTED_DAYS_AGO : null;
@@ -181,15 +184,54 @@ export default function Home() {
           </Pressable>
         )}
 
-        {/* Concern tags from her own product card */}
-        <View style={styles.tags}>
-          {product.helpsWith.map((h) => (
-            <Tag key={h} label={h} tone="blue" />
-          ))}
-        </View>
+        {/*
+          A next action, not merchandising.
+          This row used to list her product-card concern chips ("ACL tears",
+          "Hip dysplasia"...). Those help a shopper decide whether to buy; to
+          someone already dosing daily they are not actionable, and stacked
+          under their pet's name they read as a list of things the pet has.
+        */}
+        <Pressable onPress={() => router.push('/progress')}>
+          <Card style={styles.photoNudge}>
+            {lastPhoto ? (
+              <Image
+                source={imgSource(lastPhoto.photo)}
+                style={styles.photoThumb}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <View style={[styles.photoThumb, styles.photoThumbEmpty]}>
+                <Icon name="camera" size={20} color={color.textFaint} />
+              </View>
+            )}
+            <View style={styles.photoText}>
+              <BLText variant="label" size={type.sm}>
+                How’s {pet.name} looking?
+              </BLText>
+              <BLText variant="meta" size={12} style={styles.photoSub}>
+                {daysSincePhoto == null
+                  ? 'Add your first progress photo'
+                  : daysSincePhoto === 0
+                    ? 'Last photo added today'
+                    : `Last photo ${daysSincePhoto} day${daysSincePhoto === 1 ? '' : 's'} ago`}
+              </BLText>
+            </View>
+            <Icon name="chevron-right" size={18} color={color.navy} />
+          </Card>
+        </Pressable>
       </Page>
     </View>
   );
+}
+
+/** Whole days between an ISO date and today, floored at 0. */
+function daysSince(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const then = Date.UTC(y, (m ?? 1) - 1, d ?? 1);
+  const n = new Date();
+  const today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.max(0, Math.round((today - then) / 86400000));
 }
 
 function greeting() {
@@ -283,10 +325,20 @@ const styles = StyleSheet.create({
   reorderText: { flex: 1 },
   reorderSub: { marginTop: 2 },
 
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.x2,
-    marginTop: space.x6,
+  photoNudge: { marginTop: space.x4, flexDirection: 'row', alignItems: 'center' },
+  photoThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.sm,
+    backgroundColor: color.bgAlt,
   },
+  photoThumbEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: color.border,
+    borderStyle: 'dashed',
+  },
+  photoText: { flex: 1, marginLeft: space.x3 },
+  photoSub: { marginTop: 2 },
 });
