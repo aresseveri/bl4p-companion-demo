@@ -40,7 +40,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "deploy": "expo export -p web && cp dist/index.html dist/404.html && touch dist/.nojekyll && npx --yes gh-pages -d dist -b gh-pages --dotfiles"
   },
   "private": true
 }

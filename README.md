@@ -1,4 +1,7 @@
-# BestLife4Pets companion app — sales demo
+# BestLife4Pets companion app, sales demo
+
+**Live: https://aresseveri.github.io/bl4p-companion-demo/**
+
 
 A clickable demo of a branded companion app, built to show the BestLife4Pets
 founder on a sales call. **Not the production app.** No auth, no backend, no
@@ -39,7 +42,12 @@ Rewrites for the two most likely hosts are already committed:
 - Netlify: `public/_redirects`
 - Vercel: `vercel.json`
 
-Drag `dist/` onto Netlify Drop and the URL works immediately. On her phone she
+Currently deployed to GitHub Pages from the `gh-pages` branch. To redeploy
+after a change:
+
+```bash
+npm run deploy
+``` On her phone she
 opens it in Safari and taps Share → Add to Home Screen; the HTML shell in
 [`src/app/+html.tsx`](src/app/+html.tsx) sets the iOS meta so it opens without
 browser chrome.
@@ -98,6 +106,20 @@ Everything was pulled from her live site on 2026-08-27. Nothing is invented.
    `products.ts` set to `null`; the Reorder screen falls back to her own
    product page, which works today. Paste real listing URLs in and the CTA
    switches to "Buy on Amazon" automatically.
+
+### About the fonts
+
+Futura and Helvetica Neue are commercial faces she licenses and self-hosts.
+They are **not** bundled in this repo. `public/index.html` declares them as
+`@font-face` against her own CDN, which returns
+`access-control-allow-origin: *`, so the demo renders in her real type without
+this repo ever redistributing the font binaries. The demo does depend on
+bestlife4pets.com being reachable for type and product images.
+
+Note: the HTML shell lives in `public/index.html`, **not** `src/app/+html.tsx`.
+`+html.tsx` is only honoured by static rendering; under `web.output: "single"`
+Expo silently falls back to its default template and drops the font faces and
+the iOS meta.
 
 ### About the pet photos
 
