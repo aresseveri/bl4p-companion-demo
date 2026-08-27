@@ -9,6 +9,7 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'progress', title: 'Progress', icon: 'camera' },
   { name: 'learn', title: 'Learn', icon: 'play' },
   { name: 'reorder', title: 'Reorder', icon: 'cart' },
+  { name: 'more', title: 'More', icon: 'paw' },
 ];
 
 export default function TabsLayout() {

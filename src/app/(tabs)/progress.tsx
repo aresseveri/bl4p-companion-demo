@@ -8,12 +8,13 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card, Page } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { BLText } from '@/components/ui/text';
+import type { ProgressEntry } from '@/constants/demo';
 import { color, radius, shadow, space, type } from '@/constants/theme';
 import { imgSource, type PhotoRef } from '@/lib/img';
 import { useDemo } from '@/lib/store';
@@ -22,7 +23,8 @@ type Mode = 'timeline' | 'compare';
 
 export default function Progress() {
   const insets = useSafeAreaInsets();
-  const { pet, progress, addProgress } = useDemo();
+  const { pet, addProgress } = useDemo();
+  const progress = pet.progress;
   const [mode, setMode] = useState<Mode>('timeline');
 
   // Oldest and newest, which is what a before/after actually means.
@@ -39,19 +41,42 @@ export default function Progress() {
     return Math.max(0, Math.round(d));
   }, [before, after]);
 
-  const addPhoto = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
+  const [adding, setAdding] = useState(false);
+
+  const addPhoto = async (fromCamera: boolean) => {
+    setAdding(false);
+    if (fromCamera) {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) return;
+    }
+    const fn = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const res = await fn({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
     if (!res.canceled && res.assets[0]?.uri) {
-      addProgress({
-        date: new Date().toISOString().slice(0, 10),
-        photo: res.assets[0].uri,
-      });
+      addProgress({ date: new Date().toISOString().slice(0, 10), photo: res.assets[0].uri });
       setAfterIdx(progress.length);
+    }
+  };
+
+  /**
+   * Share the before/after as text plus the two dates. Uses the OS share
+   * sheet on device and the Web Share API on a phone browser, so it lands in
+   * Messages or Mail without us handling any of the content.
+   */
+  const shareCompare = async () => {
+    if (!before || !after || span == null) return;
+    const message =
+      `${pet.name}'s progress on BestLife4Pets\n` +
+      `${fmtDate(before.date)} to ${fmtDate(after.date)}, ${span} days apart.\n` +
+      (after.note ? `"${after.note}"` : '');
+    try {
+      await Share.share({ message, title: `${pet.name}'s progress` });
+    } catch {
+      // User dismissed the sheet, or the platform refused. Nothing to do.
     }
   };
 
@@ -67,7 +92,12 @@ export default function Progress() {
               {progress.length} photos{span != null ? ` over ${span} days` : ''}
             </BLText>
           </View>
-          <Pressable onPress={addPhoto} style={styles.addBtn} accessibilityRole="button">
+          <Pressable
+            onPress={() => setAdding(true)}
+            style={styles.addBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Add a photo"
+          >
             <Icon name="plus" size={20} color={color.onAccent} />
           </Pressable>
         </View>
@@ -101,7 +131,7 @@ export default function Progress() {
             {progress
               .slice()
               .reverse()
-              .map((e, i, arr) => (
+              .map((e: ProgressEntry, i: number, arr: ProgressEntry[]) => (
                 <View key={e.date + i} style={styles.entry}>
                   <View style={styles.rail}>
                     <View style={styles.railDot} />
@@ -143,6 +173,13 @@ export default function Progress() {
               ) : null}
             </Card>
 
+            <Pressable onPress={shareCompare} style={styles.shareBtn} accessibilityRole="button">
+              <Icon name="external" size={17} color={color.navy} />
+              <BLText variant="label" size={type.sm} style={styles.shareLabel}>
+                Share with your vet
+              </BLText>
+            </Pressable>
+
             <BLText variant="eyebrow" style={styles.pickLabel}>
               Before
             </BLText>
@@ -159,6 +196,28 @@ export default function Progress() {
           </View>
         )}
       </Page>
+
+      <Modal visible={adding} transparent animationType="slide" onRequestClose={() => setAdding(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setAdding(false)} />
+        <View style={styles.sheet}>
+          <View style={styles.grab} />
+          <BLText variant="heading" center style={styles.sheetTitle}>
+            Add a photo of {pet.name}
+          </BLText>
+          <Pressable onPress={() => addPhoto(true)} style={styles.sheetRow}>
+            <Icon name="camera" size={20} color={color.navy} />
+            <BLText variant="body" style={styles.sheetRowText}>
+              Take a photo
+            </BLText>
+          </Pressable>
+          <Pressable onPress={() => addPhoto(false)} style={[styles.sheetRow, styles.sheetRowBorder]}>
+            <Icon name="plus" size={20} color={color.navy} />
+            <BLText variant="body" style={styles.sheetRowText}>
+              Choose from library
+            </BLText>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -312,4 +371,41 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   thumbOn: { borderColor: color.accent },
+
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.x4,
+    height: 48,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: color.navy,
+  },
+  shareLabel: { marginLeft: space.x2, color: color.navy },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(26,26,26,0.35)' },
+  sheet: {
+    backgroundColor: color.surface,
+    borderTopLeftRadius: radius.md,
+    borderTopRightRadius: radius.md,
+    paddingBottom: space.x10,
+  },
+  grab: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: color.border,
+    alignSelf: 'center',
+    marginTop: space.x3,
+  },
+  sheetTitle: { marginTop: space.x4, marginBottom: space.x3, color: color.navy },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: space.x6,
+    paddingVertical: space.x4,
+  },
+  sheetRowBorder: { borderTopWidth: 1, borderTopColor: color.borderSoft },
+  sheetRowText: { marginLeft: space.x4 },
 });

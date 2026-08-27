@@ -17,10 +17,14 @@ import { BLText } from '@/components/ui/text';
 import { GIVE_HEADING, STORAGE_NOTE, productById } from '@/constants/products';
 import { color, radius, space, type } from '@/constants/theme';
 import { doseFor, frequencyWord, isAsNeeded } from '@/lib/dosing';
+import { cancelPetReminder, previewReminder, schedulePetReminder } from '@/lib/reminders';
 import { useDemo } from '@/lib/store';
 
 export default function DoseDetail() {
-  const { pet, history, reminder, set } = useDemo();
+  const { pet, setPet } = useDemo();
+  const history = pet.history;
+  const reminder = pet.reminder;
+  const [notice, setNotice] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
 
   const product = productById(pet.productId);
@@ -86,18 +90,77 @@ export default function DoseDetail() {
         <BLText variant="eyebrow" style={styles.sectionLabel}>
           Reminder
         </BLText>
-        <Pressable onPress={() => setPicking(true)}>
-          <Card style={styles.reminder}>
+        <Card padded={false}>
+          <Pressable onPress={() => setPicking(true)} style={styles.reminderRow}>
             <Icon name="clock" size={20} color={color.navy} />
             <View style={styles.reminderText}>
               <BLText variant="label">{fmtTime(reminder)}</BLText>
               <BLText variant="meta" size={12}>
-                {asNeeded ? 'A nudge to keep some on hand' : 'Every day'}
+                {pet.reminderOn
+                  ? asNeeded
+                    ? 'A nudge to keep some on hand'
+                    : 'Every day'
+                  : 'Reminder off'}
               </BLText>
             </View>
             <Icon name="chevron-right" size={18} color={color.textFaint} />
-          </Card>
-        </Pressable>
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              const next = !pet.reminderOn;
+              setPet({ reminderOn: next });
+              if (next) {
+                const res = await schedulePetReminder({ ...pet, reminderOn: true });
+                setNotice(
+                  res.granted
+                    ? res.scheduled
+                      ? 'Reminder set on this device.'
+                      : (res.reason ?? 'Reminder shown, but not scheduled here.')
+                    : 'Notifications are blocked. Turn them on in settings.',
+                );
+              } else {
+                await cancelPetReminder(pet.id);
+                setNotice('Reminder off.');
+              }
+            }}
+            style={[styles.reminderRow, styles.reminderRowBorder]}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: pet.reminderOn }}
+          >
+            <View style={[styles.checkbox, pet.reminderOn && styles.checkboxOn]}>
+              {pet.reminderOn ? <Icon name="check" size={13} color={color.onAccent} /> : null}
+            </View>
+            <BLText variant="body" size={type.sm} style={styles.reminderText}>
+              Daily reminder
+            </BLText>
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              const res = await previewReminder(pet);
+              setNotice(
+                res.granted
+                  ? 'Sent one now, check your notifications.'
+                  : 'Notifications are blocked. Turn them on in settings.',
+              );
+            }}
+            style={[styles.reminderRow, styles.reminderRowBorder]}
+          >
+            <Icon name="info" size={18} color={color.link} />
+            <BLText variant="body" size={type.sm} style={[styles.reminderText, { color: color.link }]}>
+              Send me one now
+            </BLText>
+          </Pressable>
+
+          {notice ? (
+            <View style={styles.notice}>
+              <BLText variant="meta" size={12}>
+                {notice}
+              </BLText>
+            </View>
+          ) : null}
+        </Card>
 
         {/*
           Her wording. These are ALTERNATIVES, not steps: her page shows three
@@ -153,7 +216,7 @@ export default function DoseDetail() {
         </BLText>
         <Card>
           <View style={styles.grid}>
-            {history.map((given, i) => {
+            {history.map((given: boolean, i: number) => {
               // The last slot is today. Not yet given is pending, not missed.
               const isToday = i === history.length - 1;
               return (
@@ -195,7 +258,7 @@ export default function DoseDetail() {
         value={reminder}
         onClose={() => setPicking(false)}
         onPick={(v) => {
-          set({ reminder: v });
+          setPet({ reminder: v, reminderOn: true });
           setPicking(false);
         }}
       />
@@ -233,7 +296,7 @@ function TimePicker({
           Remind me at
         </BLText>
         <BLText variant="meta" center tone="textFaint" style={styles.sheetNote}>
-          Demo only. Real reminders come with the built app.
+          Scheduled locally on this device. Nothing leaves your phone.
         </BLText>
         <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
           {times.map((t) => {
@@ -294,8 +357,28 @@ const styles = StyleSheet.create({
 
   sectionLabel: { marginTop: space.x8, marginBottom: space.x3 },
 
-  reminder: { flexDirection: 'row', alignItems: 'center' },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: space.x5,
+    paddingVertical: space.x4,
+  },
+  reminderRowBorder: { borderTopWidth: 1, borderTopColor: color.borderSoft },
   reminderText: { flex: 1, marginLeft: space.x3 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.xs,
+    borderWidth: 2,
+    borderColor: color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: color.accent, borderColor: color.accent },
+  notice: {
+    paddingHorizontal: space.x5,
+    paddingBottom: space.x4,
+  },
 
   howRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: space.x3 },
   /* A dot, not a number: these are interchangeable options. */

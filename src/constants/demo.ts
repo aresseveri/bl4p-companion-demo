@@ -3,159 +3,212 @@
  *  DEMO SEED DATA  --  THE ONLY FILE YOU EDIT BEFORE THE CALL
  * ============================================================
  *
- * Swap the founder's own pet in here. Nothing else needs touching:
- * every screen reads from this file.
+ * Swap the founder's own pets in here. Nothing else needs touching:
+ * every screen reads from this file. Items marked  <-- SWAP  are the ones
+ * you are most likely to change.
  *
- * The three things you will most likely change are marked  <-- SWAP
- */
-
-import type { PhotoRef } from '@/lib/img';
-
-import { PRODUCTS } from './products';
-
-/**
  * ---------------------------------------------------------------
  *  AI-GENERATED PLACEHOLDER PHOTOS  --  READ BEFORE THE CALL
  * ---------------------------------------------------------------
- * The four photos in assets/progress/ are AI-generated (Higgsfield,
+ * The photos in assets/progress/ are AI-generated (Higgsfield,
  * nano_banana_2) images of one invented dog. They exist so the timeline and
  * the before/after view read as a real progress log instead of the same
  * photo four times.
  *
  * They are NOT customers and NOT evidence. They deliberately show the same
- * healthy dog on four different days in four settings — they do not depict a
+ * healthy dog on four different days in four settings, and do not depict a
  * sick pet becoming a well one, because a fabricated health transformation
  * for a supplement could be mistaken for a real testimonial if it ever left
  * this demo. Keep it that way if you regenerate them.
- *
- * Replace with the founder's own pet before the call.
  */
 
-export interface DemoPet {
-  name: string;
-  species: 'dog' | 'cat';
-  breed: string;
-  weightLb: number;
-  birthYear: number;
-  /** An https URL or a bundled local asset via require(). */
-  photo: PhotoRef;
-  /** Which SKU they bought. Must be an id from products.ts. */
-  productId: string;
-}
+import type { PhotoRef } from '@/lib/img';
 
-/** <-- SWAP: the founder's pet goes here. */
-export const DEMO_PET: DemoPet = {
-  name: 'Rosie',
-  species: 'dog',
-  breed: 'English Bulldog',
-  weightLb: 52,
-  birthYear: 2018,
-  // The most recent of the four generated photos, so the avatar and the end
-  // of the progress timeline are the same dog.
-  photo: require('../../assets/progress/rosie-04.jpg'),
-  productId: 'walk-easy',
-};
-
-/** <-- SWAP: the pet parent's name, used in a couple of greetings. */
-export const DEMO_OWNER_FIRST_NAME = 'Sam';
-
-/** <-- SWAP: how many days running they have marked a dose given. */
-export const DEMO_STREAK_DAYS = 12;
-
-/**
- * Dose history for the 30-day grid on the Dose Detail screen.
- * `true` = marked as given. Index 0 is 29 days ago, last index is today.
- *
- * Today is deliberately left UNGIVEN so the founder can tap "Mark as given"
- * on the Home screen and watch the streak tick up. That tap is the demo.
- */
-export const DEMO_HISTORY: boolean[] = buildHistory(30, DEMO_STREAK_DAYS, [17, 21, 22]);
-
-function buildHistory(days: number, streak: number, missedDaysAgo: number[]): boolean[] {
-  const out: boolean[] = [];
-  for (let i = 0; i < days; i++) {
-    const daysAgo = days - 1 - i;
-    if (daysAgo === 0) out.push(false); // today, waiting to be tapped
-    else if (daysAgo <= streak) out.push(true); // the current streak
-    else out.push(!missedDaysAgo.includes(daysAgo));
-  }
-  return out;
-}
-
-/**
- * When the current bottle was started. Drives the reorder nudge.
- *
- * Tune this against DEMO_BOTTLE_PILLS. On WALK-EASY a 52 lb dog takes
- * 2 pills twice a day, so a 180-tablet bottle is 45 days; 31 days in leaves
- * about two weeks and the nudge reads sensibly on the call.
- */
-export const DEMO_BOTTLE_STARTED_DAYS_AGO = 31;
-
-/**
- * <-- SWAP: how many pills are in the bottle the founder actually has.
- *
- * Read it off her label. Her counts differ per SKU and her site does not
- * state them consistently, so this is NOT derived: the WALK-EASY product
- * photo reads 180 tablets, Peaceful Paws reads 400, and the dental page says
- * 450 pills in the copy while its own image is named 400_TABLETS.
- *
- * 180 here matches the WALK-EASY bottle in her own product photo, which is
- * the SKU this demo pet is on. If you change DEMO_PET.productId, change this
- * too, or set it to null and the reorder nudge simply drops the day count
- * instead of showing a number nobody can source.
- */
-export const DEMO_BOTTLE_PILLS: number | null = 180;
-
-/** Reminder time shown on the Dose Detail screen. UI state only, nothing is scheduled. */
-export const DEMO_REMINDER_TIME = { hour: 8, minute: 0 };
+const PHOTOS = {
+  bed: require('../../assets/progress/rosie-01.jpg'),
+  steps: require('../../assets/progress/rosie-02.jpg'),
+  beach: require('../../assets/progress/rosie-03.jpg'),
+  door: require('../../assets/progress/rosie-04.jpg'),
+} as const;
 
 export interface ProgressEntry {
-  /** ISO date. Shown as "Mar 4" etc. */
+  /** ISO date, YYYY-MM-DD. */
   date: string;
   photo: PhotoRef;
   /** Optional one-line note from the pet parent. */
   note?: string;
 }
 
+export interface WeightEntry {
+  date: string;
+  lb: number;
+}
+
+export interface VetNote {
+  date: string;
+  title: string;
+  note: string;
+}
+
+export interface Pet {
+  id: string;
+  name: string;
+  species: 'dog' | 'cat';
+  breed: string;
+  weightLb: number;
+  birthYear: number;
+  photo: PhotoRef;
+  /** Which of her SKUs they are on. Must be an id from products.ts. */
+  productId: string;
+  /** Reminder time. Scheduled locally on device; nothing leaves the phone. */
+  reminder: { hour: number; minute: number };
+  /** Whether the daily reminder is on. */
+  reminderOn: boolean;
+  /** 30 entries, oldest first, last is today. */
+  history: boolean[];
+  streak: number;
+  progress: ProgressEntry[];
+  weights: WeightEntry[];
+  vetNotes: VetNote[];
+  /**
+   * Pills in the bottle they actually have. Read it off her label: her counts
+   * differ per SKU and her site states them inconsistently (WALK-EASY photo
+   * reads 180 tablets, Peaceful Paws 400, the dental page says 450 pills in
+   * copy while its own image is named 400_TABLETS). null drops the day count
+   * from the reorder nudge rather than inventing one.
+   */
+  bottlePills: number | null;
+  /** Days since this bottle was opened. Tune against bottlePills. */
+  bottleStartedDaysAgo: number;
+}
+
 /**
- * <-- SWAP: progress photos. STILL THE HIGHEST-VALUE EDIT BEFORE THE CALL.
- *
- * Four AI-generated photos of one invented dog (see the note at the top of
- * this file), oldest first. Same animal, four different days and settings, so
- * the timeline and the before/after compare read like a real log.
- *
- * Why generated rather than sourced: her site has no same-pet progression
- * photos anywhere, and seeding four different real customer pets made the
- * compare view show a bulldog next to two black cats, which reads as a broken
- * app. These are clearly placeholders, not customers.
- *
- * Swap in four real photos of the founder's own pet taken weeks apart.
+ * Build a 30-day history.
+ * Today is deliberately left UNGIVEN so the founder can tap "Mark as given"
+ * on the Home screen and watch the streak tick up. That tap is the demo.
  */
-export const DEMO_PROGRESS: ProgressEntry[] = [
+function buildHistory(streak: number, missedDaysAgo: number[]): boolean[] {
+  const days = 30;
+  const out: boolean[] = [];
+  for (let i = 0; i < days; i++) {
+    const daysAgo = days - 1 - i;
+    if (daysAgo === 0) out.push(false);
+    else if (daysAgo <= streak) out.push(true);
+    else out.push(!missedDaysAgo.includes(daysAgo));
+  }
+  return out;
+}
+
+/**
+ * <-- SWAP: the founder's pets go here.
+ *
+ * The first pet is the one Home opens on. Two pets on different remedies is
+ * the normal household case and the clearest way to show depth on the call.
+ */
+export const DEMO_PETS: Pet[] = [
   {
-    date: '2026-06-14',
-    photo: require('../../assets/progress/rosie-01.jpg'),
-    note: 'Day one. Stiff getting up from her bed in the mornings.',
+    id: 'rosie',
+    name: 'Rosie',
+    species: 'dog',
+    breed: 'English Bulldog',
+    weightLb: 52,
+    birthYear: 2018,
+    photo: PHOTOS.door,
+    productId: 'walk-easy',
+    reminder: { hour: 8, minute: 0 },
+    reminderOn: true,
+    history: buildHistory(12, [17, 21, 22]),
+    streak: 12,
+    // WALK-EASY at 2 pills twice a day is 4/day. 180 tablets is 45 days.
+    bottlePills: 180,
+    bottleStartedDaysAgo: 31,
+    progress: [
+      {
+        date: '2026-06-14',
+        photo: PHOTOS.bed,
+        note: 'Day one. Stiff getting up from her bed in the mornings.',
+      },
+      {
+        date: '2026-07-05',
+        photo: PHOTOS.steps,
+        note: 'Three weeks in. Taking the back steps on her own again.',
+      },
+      { date: '2026-07-26', photo: PHOTOS.beach, note: 'Beach walk, no limp afterwards.' },
+      {
+        date: '2026-08-23',
+        photo: PHOTOS.door,
+        note: 'Two months. Back to meeting me at the door.',
+      },
+    ],
+    weights: [
+      { date: '2026-06-14', lb: 56 },
+      { date: '2026-07-05', lb: 55 },
+      { date: '2026-07-26', lb: 53 },
+      { date: '2026-08-23', lb: 52 },
+    ],
+    vetNotes: [
+      {
+        date: '2026-06-10',
+        title: 'Annual check-up',
+        note: 'Dr. Patel flagged stiffness in both hips. Suggested keeping her weight down and starting joint support.',
+      },
+      {
+        date: '2026-08-19',
+        title: 'Follow-up call',
+        note: 'Reported better mobility on the stairs. Keep going, recheck in the spring.',
+      },
+    ],
   },
   {
-    date: '2026-07-05',
-    photo: require('../../assets/progress/rosie-02.jpg'),
-    note: 'Three weeks in. Taking the back steps on her own again.',
-  },
-  {
-    date: '2026-07-26',
-    photo: require('../../assets/progress/rosie-03.jpg'),
-    note: 'Beach walk, no limp afterwards.',
-  },
-  {
-    date: '2026-08-23',
-    photo: require('../../assets/progress/rosie-04.jpg'),
-    note: 'Two months. Back to meeting me at the door.',
+    id: 'miso',
+    name: 'Miso',
+    species: 'cat',
+    breed: 'Domestic Shorthair',
+    weightLb: 11,
+    birthYear: 2021,
+    // No photo on purpose: shows the empty-avatar state in the pet switcher.
+    photo: '',
+    productId: 'cat-allergy',
+    reminder: { hour: 19, minute: 30 },
+    reminderOn: false,
+    history: buildHistory(4, [9, 10, 14]),
+    streak: 4,
+    bottlePills: null, // her cat-allergy listing does not print a count
+    bottleStartedDaysAgo: 9,
+    progress: [],
+    weights: [{ date: '2026-08-01', lb: 11 }],
+    vetNotes: [],
   },
 ];
 
-/** The pet's product, resolved. */
-export const demoProduct = () =>
-  PRODUCTS.find((p) => p.id === DEMO_PET.productId) ?? PRODUCTS[0];
+/** <-- SWAP: the pet parent's name, used in the Home greeting. */
+export const DEMO_OWNER_FIRST_NAME = 'Sam';
 
-export default DEMO_PET;
+/**
+ * <-- SWAP: pre-fill the email captured at the END of onboarding.
+ * Leave empty so the founder types her own on the call.
+ */
+export const DEMO_EMAIL = '';
+
+/** A blank pet, used when adding one through onboarding. */
+export const emptyPet = (id: string): Pet => ({
+  id,
+  name: '',
+  species: 'dog',
+  breed: '',
+  weightLb: 0,
+  birthYear: new Date().getFullYear() - 3,
+  photo: '',
+  productId: 'walk-easy',
+  reminder: { hour: 8, minute: 0 },
+  reminderOn: true,
+  history: buildHistory(0, []),
+  streak: 0,
+  progress: [],
+  weights: [],
+  vetNotes: [],
+  bottlePills: null,
+  bottleStartedDaysAgo: 0,
+});
+
+export default DEMO_PETS;

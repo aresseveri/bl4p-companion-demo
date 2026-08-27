@@ -3,7 +3,7 @@
  *
  * All local. AsyncStorage on device, localStorage on web via the same API.
  * There is no account, no server, and nothing here leaves the phone.
- * Seeded from constants/demo.ts so the founder's pet is a one-file swap.
+ * Seeded from constants/demo.ts so the founder's pets are a one-file swap.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,49 +19,55 @@ import {
 } from 'react';
 
 import {
-  DEMO_HISTORY,
+  DEMO_EMAIL,
   DEMO_OWNER_FIRST_NAME,
-  DEMO_PET,
-  DEMO_PROGRESS,
-  DEMO_REMINDER_TIME,
-  DEMO_STREAK_DAYS,
-  type DemoPet,
+  DEMO_PETS,
+  emptyPet,
+  type Pet,
   type ProgressEntry,
+  type VetNote,
+  type WeightEntry,
 } from '@/constants/demo';
+import { cancelPetReminder, schedulePetReminder } from '@/lib/reminders';
 
-const KEY = 'bl4p.demo.v1';
+const KEY = 'bl4p.demo.v2';
 
 export interface DemoState {
   email: string;
   marketingOptIn: boolean;
   ownerName: string;
-  pet: DemoPet;
-  /** 30 entries, oldest first, last is today. */
-  history: boolean[];
-  streak: number;
-  reminder: { hour: number; minute: number };
-  progress: ProgressEntry[];
+  pets: Pet[];
+  activePetId: string;
+  /** Finished onboarding at least once. */
   onboarded: boolean;
+  /** Accepted the not-veterinary-advice notice. */
+  disclaimerAccepted: boolean;
 }
 
 const initial: DemoState = {
-  email: '',
+  email: DEMO_EMAIL,
   marketingOptIn: false,
   ownerName: DEMO_OWNER_FIRST_NAME,
-  pet: DEMO_PET,
-  history: DEMO_HISTORY,
-  streak: DEMO_STREAK_DAYS,
-  reminder: DEMO_REMINDER_TIME,
-  progress: DEMO_PROGRESS,
+  pets: DEMO_PETS,
+  activePetId: DEMO_PETS[0]?.id ?? '',
   onboarded: false,
+  disclaimerAccepted: false,
 };
 
 interface Ctx extends DemoState {
   ready: boolean;
+  /** The pet Home and the tabs are currently showing. */
+  pet: Pet;
   set: (patch: Partial<DemoState>) => void;
-  setPet: (patch: Partial<DemoPet>) => void;
-  markTodayGiven: () => void;
-  addProgress: (entry: ProgressEntry) => void;
+  setActivePet: (id: string) => void;
+  /** Patch the active pet, or a specific one by id. */
+  setPet: (patch: Partial<Pet>, id?: string) => void;
+  addPet: () => string;
+  removePet: (id: string) => void;
+  markTodayGiven: (id?: string) => void;
+  addProgress: (entry: ProgressEntry, id?: string) => void;
+  addWeight: (entry: WeightEntry, id?: string) => void;
+  addVetNote: (entry: VetNote, id?: string) => void;
   /** Wipes persisted state and returns to the seed. Handy mid-call. */
   resetDemo: () => void;
 }
@@ -85,7 +91,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           try {
             // Merge over `initial` so a demo.ts edit shows up even when the
             // browser is holding stale state from an earlier run.
-            setState({ ...initial, ...JSON.parse(raw) });
+            const saved = JSON.parse(raw) as Partial<DemoState>;
+            setState({ ...initial, ...saved });
           } catch {
             // Corrupt payload: fall back to the seed rather than crashing.
           }
@@ -111,24 +118,103 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const setPet = useCallback(
-    (patch: Partial<DemoPet>) =>
-      persist({ ...stateRef.current, pet: { ...stateRef.current.pet, ...patch } }),
+  const patchPet = useCallback(
+    (patch: Partial<Pet>, id?: string) => {
+      const s = stateRef.current;
+      const target = id ?? s.activePetId;
+      const pets = s.pets.map((p) => (p.id === target ? { ...p, ...patch } : p));
+      persist({ ...s, pets });
+      return pets.find((p) => p.id === target);
+    },
     [persist],
   );
 
-  const markTodayGiven = useCallback(() => {
+  const setPet = useCallback(
+    (patch: Partial<Pet>, id?: string) => {
+      const next = patchPet(patch, id);
+      // Keep the OS reminder in sync whenever the schedule changes.
+      if (next && ('reminder' in patch || 'reminderOn' in patch || 'name' in patch)) {
+        if (next.reminderOn) schedulePetReminder(next);
+        else cancelPetReminder(next.id);
+      }
+    },
+    [patchPet],
+  );
+
+  const setActivePet = useCallback((id: string) => set({ activePetId: id }), [set]);
+
+  const addPet = useCallback(() => {
     const s = stateRef.current;
-    if (s.history[s.history.length - 1]) return;
-    const history = [...s.history];
-    history[history.length - 1] = true;
-    persist({ ...s, history, streak: s.streak + 1 });
+    // Monotonic, so removing a pet can never collide with a later add.
+    let n = s.pets.length + 1;
+    while (s.pets.some((p) => p.id === `pet-${n}`)) n += 1;
+    const id = `pet-${n}`;
+    persist({ ...s, pets: [...s.pets, emptyPet(id)], activePetId: id });
+    return id;
   }, [persist]);
 
-  const addProgress = useCallback(
-    (entry: ProgressEntry) =>
-      persist({ ...stateRef.current, progress: [...stateRef.current.progress, entry] }),
+  const removePet = useCallback(
+    (id: string) => {
+      const s = stateRef.current;
+      if (s.pets.length <= 1) return;
+      cancelPetReminder(id);
+      const pets = s.pets.filter((p) => p.id !== id);
+      persist({
+        ...s,
+        pets,
+        activePetId: s.activePetId === id ? pets[0].id : s.activePetId,
+      });
+    },
     [persist],
+  );
+
+  const markTodayGiven = useCallback(
+    (id?: string) => {
+      const s = stateRef.current;
+      const target = id ?? s.activePetId;
+      const pet = s.pets.find((p) => p.id === target);
+      if (!pet || pet.history[pet.history.length - 1]) return;
+      const history = [...pet.history];
+      history[history.length - 1] = true;
+      patchPet({ history, streak: pet.streak + 1 }, target);
+    },
+    [patchPet],
+  );
+
+  const addProgress = useCallback(
+    (entry: ProgressEntry, id?: string) => {
+      const s = stateRef.current;
+      const target = id ?? s.activePetId;
+      const pet = s.pets.find((p) => p.id === target);
+      if (!pet) return;
+      patchPet({ progress: [...pet.progress, entry] }, target);
+    },
+    [patchPet],
+  );
+
+  const addWeight = useCallback(
+    (entry: WeightEntry, id?: string) => {
+      const s = stateRef.current;
+      const target = id ?? s.activePetId;
+      const pet = s.pets.find((p) => p.id === target);
+      if (!pet) return;
+      const weights = [...pet.weights, entry].sort((a, b) => a.date.localeCompare(b.date));
+      // The profile weight drives dosing, so keep it on the latest reading.
+      patchPet({ weights, weightLb: entry.lb }, target);
+    },
+    [patchPet],
+  );
+
+  const addVetNote = useCallback(
+    (entry: VetNote, id?: string) => {
+      const s = stateRef.current;
+      const target = id ?? s.activePetId;
+      const pet = s.pets.find((p) => p.id === target);
+      if (!pet) return;
+      const vetNotes = [...pet.vetNotes, entry].sort((a, b) => a.date.localeCompare(b.date));
+      patchPet({ vetNotes }, target);
+    },
+    [patchPet],
   );
 
   const resetDemo = useCallback(() => {
@@ -137,9 +223,39 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     AsyncStorage.removeItem(KEY).catch(() => {});
   }, []);
 
+  const pet = state.pets.find((p) => p.id === state.activePetId) ?? state.pets[0];
+
   const value = useMemo<Ctx>(
-    () => ({ ...state, ready, set, setPet, markTodayGiven, addProgress, resetDemo }),
-    [state, ready, set, setPet, markTodayGiven, addProgress, resetDemo],
+    () => ({
+      ...state,
+      pet,
+      ready,
+      set,
+      setActivePet,
+      setPet,
+      addPet,
+      removePet,
+      markTodayGiven,
+      addProgress,
+      addWeight,
+      addVetNote,
+      resetDemo,
+    }),
+    [
+      state,
+      pet,
+      ready,
+      set,
+      setActivePet,
+      setPet,
+      addPet,
+      removePet,
+      markTodayGiven,
+      addProgress,
+      addWeight,
+      addVetNote,
+      resetDemo,
+    ],
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;

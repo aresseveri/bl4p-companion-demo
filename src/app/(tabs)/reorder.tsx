@@ -25,7 +25,6 @@ import {
   productUrl,
   type Product,
 } from '@/constants/products';
-import { DEMO_BOTTLE_PILLS, DEMO_BOTTLE_STARTED_DAYS_AGO } from '@/constants/demo';
 import { brand, color, radius, shadow, space, type } from '@/constants/theme';
 import { daysOfSupply, doseFor } from '@/lib/dosing';
 import { useDemo } from '@/lib/store';
@@ -40,8 +39,8 @@ export default function Reorder() {
     [theirs, pet],
   );
 
-  const supply = daysOfSupply(dose, DEMO_BOTTLE_PILLS);
-  const daysLeft = supply != null ? supply - DEMO_BOTTLE_STARTED_DAYS_AGO : null;
+  const supply = daysOfSupply(dose, pet.bottlePills);
+  const daysLeft = supply != null ? supply - pet.bottleStartedDaysAgo : null;
 
   const others = PRODUCTS.filter(
     (p) => p.id !== theirs?.id && p.species.includes(pet.species),

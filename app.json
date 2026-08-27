@@ -8,7 +8,9 @@
     "scheme": "bl4p",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bestlife4pets.companion"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +19,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.bestlife4pets.companion"
     },
     "web": {
       "output": "single",
@@ -25,7 +28,25 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#FCCC10"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BestLife4Pets uses the camera to take progress photos of your pet and to read the barcode on your bottle. Images stay on your device."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BestLife4Pets uses your photos so you can add progress pictures of your pet. They stay on your device."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

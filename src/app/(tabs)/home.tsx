@@ -1,8 +1,9 @@
 /**
- * Screen 3 — Home.
+ * Home.
  *
- * Pet up top, today's dose card with a big "Mark as given", adherence streak,
- * and the reorder nudge. The dose shown is resolved from her label bands.
+ * Pet switcher, today's dose with a big "Mark as given", adherence streak,
+ * reorder nudge, and a progress-photo prompt. The dose is resolved from her
+ * label bands, never computed.
  */
 
 import { Image } from 'expo-image';
@@ -13,8 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card, Page } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { PetSwitcher } from '@/components/ui/pet-switcher';
 import { BLText } from '@/components/ui/text';
-import { DEMO_BOTTLE_PILLS, DEMO_BOTTLE_STARTED_DAYS_AGO } from '@/constants/demo';
 import { productById } from '@/constants/products';
 import { brand, color, radius, shadow, space, type } from '@/constants/theme';
 import { daysOfSupply, doseFor, isAsNeeded } from '@/lib/dosing';
@@ -24,42 +25,55 @@ import { useDemo } from '@/lib/store';
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pet, history, streak, markTodayGiven, ownerName, progress } = useDemo();
+  const { pet, markTodayGiven, ownerName, pets } = useDemo();
 
   /**
-   * The greeting reads the clock, so the build-time HTML and the first client
-   * render would disagree. Hold a stable value until after mount.
+   * The greeting reads the clock, so hold a stable value until after mount
+   * to keep the first render deterministic.
    */
   const [greet, setGreet] = useState('Welcome back');
   useEffect(() => setGreet(greeting()), []);
 
   const product = productById(pet.productId);
-  const dose = useMemo(
-    () => (product ? doseFor(product, pet) : null),
-    [product, pet],
-  );
+  const dose = useMemo(() => (product ? doseFor(product, pet) : null), [product, pet]);
 
-  const givenToday = history[history.length - 1];
-  const last14 = history.slice(-14);
+  const givenToday = pet.history[pet.history.length - 1];
+  const last14 = pet.history.slice(-14);
   const adherence = Math.round(
-    (history.filter(Boolean).length / history.length) * 100,
+    (pet.history.filter(Boolean).length / pet.history.length) * 100,
   );
 
-  const lastPhoto = progress.length ? progress[progress.length - 1] : null;
-  const daysSincePhoto = lastPhoto ? daysSince(lastPhoto.date) : null;
-
-  const supply = daysOfSupply(dose, DEMO_BOTTLE_PILLS);
-  const daysLeft = supply != null ? supply - DEMO_BOTTLE_STARTED_DAYS_AGO : null;
+  const supply = daysOfSupply(dose, pet.bottlePills);
+  const daysLeft = supply != null ? supply - pet.bottleStartedDaysAgo : null;
   const asNeeded = product ? isAsNeeded(product) : false;
+
+  const lastPhoto = pet.progress.length ? pet.progress[pet.progress.length - 1] : null;
+  const daysSincePhoto = lastPhoto ? daysSince(lastPhoto.date) : null;
 
   if (!product) return null;
 
   return (
     <View style={styles.flex}>
       <Page contentStyle={{ paddingTop: insets.top + space.x4 }}>
-        {/* Pet header */}
+        {pets.length > 1 ? (
+          <View style={styles.switcher}>
+            <PetSwitcher />
+          </View>
+        ) : null}
+
         <View style={styles.petRow}>
-          <Image source={imgSource(pet.photo)} style={styles.petPhoto} contentFit="cover" transition={200} />
+          {pet.photo ? (
+            <Image
+              source={imgSource(pet.photo)}
+              style={styles.petPhoto}
+              contentFit="cover"
+              transition={200}
+            />
+          ) : (
+            <View style={[styles.petPhoto, styles.petPhotoEmpty]}>
+              <Icon name="paw" size={24} color={color.textFaint} />
+            </View>
+          )}
           <View style={styles.petText}>
             <BLText variant="eyebrow">
               {greet}, {ownerName}
@@ -84,7 +98,12 @@ export default function Home() {
                 {product.shortName}
               </BLText>
             </View>
-            <Image source={{ uri: product.image }} style={styles.doseImg} contentFit="contain" transition={180} />
+            <Image
+              source={{ uri: product.image }}
+              style={styles.doseImg}
+              contentFit="contain"
+              transition={180}
+            />
           </View>
 
           <View style={styles.doseBody}>
@@ -110,7 +129,7 @@ export default function Home() {
             )}
 
             <Pressable
-              onPress={markTodayGiven}
+              onPress={() => markTodayGiven()}
               disabled={givenToday}
               accessibilityRole="button"
               style={({ pressed }) => [
@@ -119,11 +138,7 @@ export default function Home() {
                 pressed && !givenToday && { opacity: 0.85, transform: [{ scale: 0.99 }] },
               ]}
             >
-              <Icon
-                name="check"
-                size={19}
-                color={givenToday ? color.success : color.onAccent}
-              />
+              <Icon name="check" size={19} color={givenToday ? color.success : color.onAccent} />
               <BLText
                 variant="bodyBold"
                 style={[
@@ -151,46 +166,46 @@ export default function Home() {
               <Icon name="flame" size={20} color={color.accent} filled />
             </View>
             <View style={styles.streakText}>
-              <BLText variant="label">{streak} day streak</BLText>
+              <BLText variant="label">{pet.streak} day streak</BLText>
               <BLText variant="meta">{adherence}% of doses given this month</BLText>
             </View>
           </View>
           <View style={styles.grid}>
-            {last14.map((given, i) => (
-              <View
-                key={i}
-                style={[styles.dot, given ? styles.dotOn : styles.dotOff]}
-              />
-            ))}
+            {last14.map((given, i) => {
+              const isToday = i === last14.length - 1;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    given ? styles.dotOn : isToday ? styles.dotToday : styles.dotOff,
+                  ]}
+                />
+              );
+            })}
           </View>
         </Card>
 
         {/* Reorder nudge */}
-        {daysLeft != null && (
-          <Pressable onPress={() => router.push('/reorder')}>
-            <Card style={styles.reorder}>
-              <View style={styles.reorderText}>
-                <BLText variant="label" size={type.sm}>
-                  {daysLeft > 0
+        <Pressable onPress={() => router.push('/reorder')}>
+          <Card style={styles.reorder}>
+            <View style={styles.reorderText}>
+              <BLText variant="label" size={type.sm}>
+                {daysLeft == null
+                  ? `Reorder ${pet.name}’s ${product.shortName}`
+                  : daysLeft > 0
                     ? `About ${daysLeft} days left in this bottle`
                     : 'You’re due for a refill'}
-                </BLText>
-                <BLText variant="meta" size={12} style={styles.reorderSub}>
-                  {brand.trust[1].label} · {brand.trust[1].detail}
-                </BLText>
-              </View>
-              <Icon name="chevron-right" size={18} color={color.navy} />
-            </Card>
-          </Pressable>
-        )}
+              </BLText>
+              <BLText variant="meta" size={12} style={styles.reorderSub}>
+                {brand.trust[1].label} · {brand.trust[1].detail}
+              </BLText>
+            </View>
+            <Icon name="chevron-right" size={18} color={color.navy} />
+          </Card>
+        </Pressable>
 
-        {/*
-          A next action, not merchandising.
-          This row used to list her product-card concern chips ("ACL tears",
-          "Hip dysplasia"...). Those help a shopper decide whether to buy; to
-          someone already dosing daily they are not actionable, and stacked
-          under their pet's name they read as a list of things the pet has.
-        */}
+        {/* A next action, not merchandising. */}
         <Pressable onPress={() => router.push('/progress')}>
           <Card style={styles.photoNudge}>
             {lastPhoto ? (
@@ -220,6 +235,25 @@ export default function Home() {
             <Icon name="chevron-right" size={18} color={color.navy} />
           </Card>
         </Pressable>
+
+        {/* Health log */}
+        <Pressable onPress={() => router.push('/health')}>
+          <Card style={styles.photoNudge}>
+            <View style={[styles.photoThumb, styles.healthIcon]}>
+              <Icon name="clock" size={20} color={color.navy} />
+            </View>
+            <View style={styles.photoText}>
+              <BLText variant="label" size={type.sm}>
+                Health log
+              </BLText>
+              <BLText variant="meta" size={12} style={styles.photoSub}>
+                {pet.weights.length} weigh-in{pet.weights.length === 1 ? '' : 's'} ·{' '}
+                {pet.vetNotes.length} vet note{pet.vetNotes.length === 1 ? '' : 's'}
+              </BLText>
+            </View>
+            <Icon name="chevron-right" size={18} color={color.navy} />
+          </Card>
+        </Pressable>
       </Page>
     </View>
   );
@@ -244,6 +278,8 @@ function greeting() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.bg },
 
+  switcher: { marginBottom: space.x5 },
+
   petRow: { flexDirection: 'row', alignItems: 'center' },
   petPhoto: {
     width: 66,
@@ -254,6 +290,7 @@ const styles = StyleSheet.create({
     borderColor: color.surface,
     ...shadow.sm,
   },
+  petPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
   petText: { flex: 1, marginLeft: space.x4 },
   petName: { color: color.navy, marginTop: 1 },
 
@@ -315,6 +352,7 @@ const styles = StyleSheet.create({
   dot: { flex: 1, height: 26, borderRadius: 5 },
   dotOn: { backgroundColor: color.success },
   dotOff: { backgroundColor: color.bgAlt, borderWidth: 1, borderColor: color.border },
+  dotToday: { backgroundColor: color.warningBg, borderWidth: 2, borderColor: color.accent },
 
   reorder: {
     marginTop: space.x4,
@@ -339,6 +377,7 @@ const styles = StyleSheet.create({
     borderColor: color.border,
     borderStyle: 'dashed',
   },
+  healthIcon: { alignItems: 'center', justifyContent: 'center' },
   photoText: { flex: 1, marginLeft: space.x3 },
   photoSub: { marginTop: 2 },
 });
