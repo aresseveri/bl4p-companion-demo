@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BLButton } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { BLText } from '@/components/ui/text';
+import { TimeWheel, fmtTime } from '@/components/ui/time-wheel';
 import { productById, productsForSpecies, type Species } from '@/constants/products';
 import { brand, color, font, radius, shadow, space, type } from '@/constants/theme';
 import { doseFor } from '@/lib/dosing';
@@ -436,12 +437,6 @@ function StepReminder({ pet, setPet, onNext }: PetProps) {
     return p ? doseFor(p, pet) : null;
   }, [pet]);
 
-  const times = useMemo(() => {
-    const out: number[] = [];
-    for (let h = 6; h <= 21; h++) out.push(h);
-    return out;
-  }, []);
-
   return (
     <View>
       <BLText variant="display" size={type.h2} style={styles.stepTitle}>
@@ -466,25 +461,11 @@ function StepReminder({ pet, setPet, onNext }: PetProps) {
         <View style={styles.stepSub} />
       )}
 
-      <View style={styles.timeGrid}>
-        {times.map((h) => {
-          const on = pet.reminder.hour === h;
-          return (
-            <Pressable
-              key={h}
-              onPress={() => setPet({ reminder: { hour: h, minute: 0 }, reminderOn: true })}
-              style={[styles.timeChip, on && styles.timeChipOn]}
-            >
-              <BLText
-                variant="label"
-                size={type.sm}
-                style={{ color: on ? color.onAccent : color.textMuted }}
-              >
-                {fmtHour(h)}
-              </BLText>
-            </Pressable>
-          );
-        })}
+      <View style={styles.wheelCard}>
+        <TimeWheel
+          value={pet.reminder}
+          onChange={(t) => setPet({ reminder: t, reminderOn: true })}
+        />
       </View>
 
       <Pressable
@@ -497,7 +478,7 @@ function StepReminder({ pet, setPet, onNext }: PetProps) {
           {pet.reminderOn ? <Icon name="check" size={13} color={color.onAccent} /> : null}
         </View>
         <BLText variant="body" size={type.sm} style={styles.toggleText}>
-          Remind me daily at {fmtHour(pet.reminder.hour)}
+          Remind me daily at {fmtTime(pet.reminder)}
         </BLText>
       </Pressable>
 
@@ -630,12 +611,6 @@ function Field({
       />
     </View>
   );
-}
-
-function fmtHour(h: number) {
-  const ampm = h < 12 ? 'am' : 'pm';
-  const n = h % 12 === 0 ? 12 : h % 12;
-  return `${n}${ampm}`;
 }
 
 const AVATAR = 120;
@@ -785,16 +760,12 @@ const styles = StyleSheet.create({
   },
   doseBig: { color: color.navy, marginVertical: space.x1 },
 
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.x2 },
-  timeChip: {
-    paddingHorizontal: space.x4,
+  wheelCard: {
+    backgroundColor: color.surface,
+    borderRadius: radius.card,
     paddingVertical: space.x3,
-    borderRadius: radius.pill,
-    backgroundColor: color.bgAlt,
-    borderWidth: 1,
-    borderColor: color.border,
+    ...shadow.sm,
   },
-  timeChipOn: { backgroundColor: color.accent, borderColor: color.accent },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: space.x5 },
   checkbox: {

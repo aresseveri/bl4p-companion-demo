@@ -8,12 +8,14 @@
  */
 
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { Card, Page, ScreenHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { BLButton } from '@/components/ui/button';
 import { BLText } from '@/components/ui/text';
+import { TimeWheel, fmtTime } from '@/components/ui/time-wheel';
 import { GIVE_HEADING, STORAGE_NOTE, productById } from '@/constants/products';
 import { color, radius, space, type } from '@/constants/theme';
 import { doseFor, frequencyWord, isAsNeeded } from '@/lib/dosing';
@@ -266,7 +268,7 @@ export default function DoseDetail() {
   );
 }
 
-/** Sets state only. Nothing is scheduled. */
+/** Wheel picker sheet. Scheduling happens in the store when this commits. */
 function TimePicker({
   visible,
   value,
@@ -278,14 +280,12 @@ function TimePicker({
   onPick: (v: { hour: number; minute: number }) => void;
   onClose: () => void;
 }) {
-  const times = useMemo(() => {
-    const out: { hour: number; minute: number }[] = [];
-    for (let h = 6; h <= 22; h++) {
-      out.push({ hour: h, minute: 0 });
-      out.push({ hour: h, minute: 30 });
-    }
-    return out;
-  }, []);
+  const [draft, setDraft] = useState(value);
+
+  // Re-seed the draft each time the sheet opens.
+  useEffect(() => {
+    if (visible) setDraft(value);
+  }, [visible, value]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -298,32 +298,16 @@ function TimePicker({
         <BLText variant="meta" center tone="textFaint" style={styles.sheetNote}>
           Scheduled locally on this device. Nothing leaves your phone.
         </BLText>
-        <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
-          {times.map((t) => {
-            const on = t.hour === value.hour && t.minute === value.minute;
-            return (
-              <Pressable
-                key={`${t.hour}:${t.minute}`}
-                onPress={() => onPick(t)}
-                style={[styles.timeRow, on && styles.timeRowOn]}
-              >
-                <BLText variant="body" style={on ? { color: color.navy } : undefined}>
-                  {fmtTime(t)}
-                </BLText>
-                {on ? <Icon name="check" size={17} color={color.navy} /> : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+
+        <TimeWheel value={draft} onChange={setDraft} />
+
+        <View style={styles.sheetActions}>
+          <BLButton label="Cancel" variant="outline" onPress={onClose} style={styles.sheetBtn} />
+          <BLButton label="Set" onPress={() => onPick(draft)} style={styles.sheetBtn} />
+        </View>
       </View>
     </Modal>
   );
-}
-
-function fmtTime({ hour, minute }: { hour: number; minute: number }) {
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  const h = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h}:${String(minute).padStart(2, '0')} ${ampm}`;
 }
 
 const styles = StyleSheet.create({
@@ -435,7 +419,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.md,
     borderTopRightRadius: radius.md,
     paddingBottom: space.x8,
-    maxHeight: '62%',
   },
   sheetGrab: {
     width: 40,
@@ -447,14 +430,11 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { marginTop: space.x4, color: color.navy },
   sheetNote: { marginTop: space.x1, marginBottom: space.x3 },
-  sheetList: { paddingHorizontal: space.x5 },
-  timeRow: {
+  sheetActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: space.x3,
-    paddingHorizontal: space.x3,
-    borderRadius: radius.input,
+    gap: space.x3,
+    paddingHorizontal: space.x5,
+    marginTop: space.x5,
   },
-  timeRowOn: { backgroundColor: color.warningBg },
+  sheetBtn: { flex: 1 },
 });
