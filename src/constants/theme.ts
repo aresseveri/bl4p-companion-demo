@@ -5,7 +5,7 @@
  *  - colors  -> CSS custom properties on the Shopify theme (theme.css / inline :root)
  *  - type    -> computed styles on the rendered homepage
  *  - radii   -> --rounded-* scale on the theme
- *  - fonts   -> her self-hosted woff2 files, downloaded to assets/fonts
+ *  - fonts   -> her self-hosted woff2 files, loaded from her CDN in public/index.html
  *
  * Screens must read from this file. Do not hardcode a hex anywhere else.
  */
@@ -83,15 +83,31 @@ export const color = {
  *                    Kept only so nothing that references it breaks.
  *
  * Note: Futura on her site is a self-hosted webfont with weights
- * 100/400/500/700/900. Computed styles show w600 on product-card titles,
- * which has no file and synthesises down to the 500 face + faux bold.
- * We map 600 -> the real 700 file instead, which reads closer to her site.
+ * 100/400/500/700/900, but those numbers do not describe how the files look.
+ * Her 500 is visually a Book weight; her 700 is the first genuinely bold cut;
+ * her 900 is the decorative Art Deco Futura Black, not a heavy Futura. See
+ * the note on `font` below for which face each heading actually uses.
  * ------------------------------------------------------------------ */
 export const font = {
-  /** Display / headings. h2s on her site are Futura 500. */
+  /**
+   * Display / headings.
+   *
+   * Weight note, because her file names mislead. Her @font-face weight 500
+   * (Futura_2fb4d718) is visually a BOOK weight, barely heavier than her 400.
+   * She gets away with it on desktop at 32px, but at phone heading sizes it
+   * reads thin and weak. Her own small headings (h3.sbc-title, "Shop by
+   * Concern", 18px navy) use Futura 700, so headings here use `displayBold`
+   * to match that treatment.
+   *
+   * `displayBlack` is her FuturaBlack file, which is the decorative Art Deco
+   * Futura Black, not a heavy Futura. Do not use it for text.
+   */
   display: 'Futura',
-  displayMedium: 'FuturaMedium',
+  /** Her weight-500 file. Book-ish. Only for large, airy headings. */
+  displayBook: 'FuturaMedium',
+  /** Her weight-700 file. The correct face for headings at phone sizes. */
   displayBold: 'FuturaBold',
+  /** Decorative Art Deco face. Reserved, unused. */
   displayBlack: 'FuturaBlack',
   /** Sub-headings and meta. */
   neue: 'HelveticaNeue',

@@ -8,11 +8,11 @@ import { Text as RNText, StyleSheet, type TextProps } from 'react-native';
 import { color, font, leading, type } from '@/constants/theme';
 
 type Variant =
-  /** Futura 500. Her h2 section headings. */
+  /** Futura 700, matching her h3 heading treatment at small sizes. */
   | 'display'
   /** Futura 700 uppercase. Her product card titles. */
   | 'title'
-  /** Futura 500. Smaller headings. */
+  /** Futura 700. Smaller headings. */
   | 'heading'
   /** Helvetica Neue 700. Her sub-headings and labels. */
   | 'label'
@@ -63,7 +63,7 @@ function lineFactor(v: Variant) {
 
 const styles = StyleSheet.create({
   display: {
-    fontFamily: font.displayMedium,
+    fontFamily: font.displayBold,
     fontSize: type.h1,
     lineHeight: type.h1 * leading.heading,
     color: color.text,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     color: color.text,
   },
   heading: {
-    fontFamily: font.displayMedium,
+    fontFamily: font.displayBold,
     fontSize: type.h3,
     lineHeight: type.h3 * leading.heading,
     color: color.text,
