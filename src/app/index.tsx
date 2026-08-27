@@ -34,7 +34,7 @@ import { BLText } from '@/components/ui/text';
 import { TimeWheel, fmtTime } from '@/components/ui/time-wheel';
 import { productById, productsForSpecies, type Species } from '@/constants/products';
 import { brand, color, font, radius, shadow, space, type } from '@/constants/theme';
-import { doseFor } from '@/lib/dosing';
+import { bandPhrase, doseFor } from '@/lib/dosing';
 import { imgSource } from '@/lib/img';
 import { schedulePetReminder } from '@/lib/reminders';
 import { useDemo } from '@/lib/store';
@@ -450,11 +450,15 @@ function StepReminder({ pet, setPet, onNext }: PetProps) {
             {pet.name}
             {'’'}s dose
           </BLText>
-          <BLText variant="display" size={26} style={styles.doseBig}>
+          <BLText
+            variant="display"
+            size={dose.text.length > 20 ? 23 : 26}
+            style={styles.doseBig}
+          >
             {dose.text}
           </BLText>
           <BLText variant="meta" size={12}>
-            From your label, for {dose.bandLabel.toLowerCase()}
+            From your label, for {bandPhrase(dose.bandLabel)}
           </BLText>
         </View>
       ) : (

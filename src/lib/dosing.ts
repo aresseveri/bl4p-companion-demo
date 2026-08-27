@@ -81,6 +81,17 @@ export function doseFor(product: Product, pet: PetLike): ResolvedDose | null {
   };
 }
 
+/**
+ * Her band labels are not written to a single pattern. Weight bands read
+ * "Medium dogs (25-60 lbs)", but the life-stage bands on Cat Allergy read
+ * "For Cats" and "For Kittens". Prefixing every one with "for" produced
+ * "for for cats", so strip a leading "for" when the label already has one.
+ */
+export function bandPhrase(bandLabel: string): string {
+  const lower = bandLabel.toLowerCase();
+  return lower.startsWith('for ') ? lower.slice(4) : lower;
+}
+
 /** "twice a day" / "three times a day", matching how she writes it. */
 export function frequencyWord(timesPerDay: number): string {
   if (timesPerDay === 1) return 'once a day';

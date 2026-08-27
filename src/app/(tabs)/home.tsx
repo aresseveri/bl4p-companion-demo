@@ -1,9 +1,15 @@
 /**
  * Home.
  *
- * Pet switcher, today's dose with a big "Mark as given", adherence streak,
- * reorder nudge, and a progress-photo prompt. The dose is resolved from her
- * label bands, never computed.
+ * One job: did today's dose happen? Everything else is secondary and is
+ * sized that way.
+ *
+ * This screen previously stacked seven blocks of equal weight, including the
+ * pet's photo twice (switcher and header) and three near-identical chevron
+ * rows for Progress, Reorder and Health. Two of those three were pure
+ * navigation to places that are already tabs, so they were noise. Now there
+ * is one hero, one compact streak strip, and at most ONE contextual nudge
+ * chosen by urgency.
  */
 
 import { Image } from 'expo-image';
@@ -17,8 +23,8 @@ import { Icon } from '@/components/ui/icon';
 import { PetSwitcher } from '@/components/ui/pet-switcher';
 import { BLText } from '@/components/ui/text';
 import { productById } from '@/constants/products';
-import { brand, color, radius, shadow, space, type } from '@/constants/theme';
-import { daysOfSupply, doseFor, isAsNeeded } from '@/lib/dosing';
+import { color, radius, shadow, space, type } from '@/constants/theme';
+import { bandPhrase, daysOfSupply, doseFor, isAsNeeded } from '@/lib/dosing';
 import { imgSource } from '@/lib/img';
 import { useDemo } from '@/lib/store';
 
@@ -27,10 +33,6 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { pet, markTodayGiven, ownerName, pets } = useDemo();
 
-  /**
-   * The greeting reads the clock, so hold a stable value until after mount
-   * to keep the first render deterministic.
-   */
   const [greet, setGreet] = useState('Welcome back');
   useEffect(() => setGreet(greeting()), []);
 
@@ -50,44 +52,55 @@ export default function Home() {
   const lastPhoto = pet.progress.length ? pet.progress[pet.progress.length - 1] : null;
   const daysSincePhoto = lastPhoto ? daysSince(lastPhoto.date) : null;
 
+  const multi = pets.length > 1;
+
+  /**
+   * At most one nudge, picked by urgency. Running out of product beats
+   * anything else; a stale photo is next. When neither is pressing, Home
+   * ends after the streak, which is the right amount of screen.
+   */
+  const nudge: 'reorder' | 'photo' | null =
+    daysLeft != null && daysLeft <= 21
+      ? 'reorder'
+      : daysSincePhoto == null || daysSincePhoto >= 14
+        ? 'photo'
+        : null;
+
   if (!product) return null;
 
   return (
     <View style={styles.flex}>
       <Page contentStyle={{ paddingTop: insets.top + space.x4 }}>
-        {pets.length > 1 ? (
+        {/*
+          With several pets the switcher already shows the active one, so the
+          header drops the photo instead of printing it twice.
+        */}
+        {multi ? (
           <View style={styles.switcher}>
             <PetSwitcher />
           </View>
         ) : null}
 
         <View style={styles.petRow}>
-          {pet.photo ? (
+          {!multi && pet.photo ? (
             <Image
               source={imgSource(pet.photo)}
               style={styles.petPhoto}
               contentFit="cover"
               transition={200}
             />
-          ) : (
-            <View style={[styles.petPhoto, styles.petPhotoEmpty]}>
-              <Icon name="paw" size={24} color={color.textFaint} />
-            </View>
-          )}
-          <View style={styles.petText}>
+          ) : null}
+          <View style={[styles.petText, !multi && pet.photo ? styles.petTextInset : null]}>
             <BLText variant="eyebrow">
               {greet}, {ownerName}
             </BLText>
             <BLText variant="display" size={type.h2} style={styles.petName}>
               {pet.name}
             </BLText>
-            <BLText variant="meta" numberOfLines={1}>
-              {pet.breed} · {pet.weightLb} lbs
-            </BLText>
           </View>
         </View>
 
-        {/* Today's dose */}
+        {/* The hero. */}
         <Card style={styles.doseCard} padded={false}>
           <View style={styles.doseHead}>
             <View style={styles.doseHeadText}>
@@ -109,15 +122,18 @@ export default function Home() {
           <View style={styles.doseBody}>
             {dose ? (
               <>
-                <BLText variant="display" size={30} style={styles.doseText}>
+                <BLText
+                  variant="display"
+                  size={dose.text.length > 20 ? 26 : 30}
+                  style={styles.doseText}
+                >
                   {dose.text}
                 </BLText>
                 <BLText variant="meta" style={styles.doseBand}>
-                  Her label, for {dose.bandLabel.toLowerCase()}
+                  Her label, for {bandPhrase(dose.bandLabel)}
                 </BLText>
               </>
             ) : (
-              /* Her label has no band for this pet. Say so, do not invent one. */
               <View style={styles.noBand}>
                 <Icon name="info" size={18} color={color.warning} />
                 <BLText variant="body" style={styles.noBandText}>
@@ -150,110 +166,86 @@ export default function Home() {
               </BLText>
             </Pressable>
 
-            <Pressable onPress={() => router.push('/dose')} style={styles.doseLink}>
-              <BLText variant="meta" style={{ color: color.link }}>
-                See full directions and history
-              </BLText>
-              <Icon name="chevron-right" size={15} color={color.link} />
+            {/* Streak folded in, so it is context on the dose rather than
+                a second card competing with it. */}
+            <Pressable onPress={() => router.push('/dose')} style={styles.streak}>
+              <View style={styles.streakLine}>
+                <Icon name="flame" size={15} color={color.accent} filled />
+                <BLText variant="label" size={type.sm} style={styles.streakText}>
+                  {pet.streak} day streak
+                </BLText>
+                <BLText variant="meta" size={12}>
+                  {adherence}% this month
+                </BLText>
+                <Icon name="chevron-right" size={15} color={color.textFaint} />
+              </View>
+              <View style={styles.grid}>
+                {last14.map((given, i) => {
+                  const isToday = i === last14.length - 1;
+                  return (
+                    <View
+                      key={i}
+                      style={[
+                        styles.dot,
+                        given ? styles.dotOn : isToday ? styles.dotToday : styles.dotOff,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
             </Pressable>
           </View>
         </Card>
 
-        {/* Streak */}
-        <Card style={styles.streakCard}>
-          <View style={styles.streakTop}>
-            <View style={styles.streakFlame}>
-              <Icon name="flame" size={20} color={color.accent} filled />
-            </View>
-            <View style={styles.streakText}>
-              <BLText variant="label">{pet.streak} day streak</BLText>
-              <BLText variant="meta">{adherence}% of doses given this month</BLText>
-            </View>
-          </View>
-          <View style={styles.grid}>
-            {last14.map((given, i) => {
-              const isToday = i === last14.length - 1;
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    given ? styles.dotOn : isToday ? styles.dotToday : styles.dotOff,
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </Card>
-
-        {/* Reorder nudge */}
-        <Pressable onPress={() => router.push('/reorder')}>
-          <Card style={styles.reorder}>
-            <View style={styles.reorderText}>
-              <BLText variant="label" size={type.sm}>
-                {daysLeft == null
-                  ? `Reorder ${pet.name}’s ${product.shortName}`
-                  : daysLeft > 0
+        {/* At most one. */}
+        {nudge === 'reorder' ? (
+          <Pressable onPress={() => router.push('/reorder')}>
+            <Card style={styles.nudge}>
+              <View style={styles.nudgeIcon}>
+                <Icon name="cart" size={18} color={color.navy} />
+              </View>
+              <View style={styles.nudgeText}>
+                <BLText variant="label" size={type.sm}>
+                  {daysLeft != null && daysLeft > 0
                     ? `About ${daysLeft} days left in this bottle`
                     : 'You’re due for a refill'}
-              </BLText>
-              <BLText variant="meta" size={12} style={styles.reorderSub}>
-                {brand.trust[1].label} · {brand.trust[1].detail}
-              </BLText>
-            </View>
-            <Icon name="chevron-right" size={18} color={color.navy} />
-          </Card>
-        </Pressable>
-
-        {/* A next action, not merchandising. */}
-        <Pressable onPress={() => router.push('/progress')}>
-          <Card style={styles.photoNudge}>
-            {lastPhoto ? (
-              <Image
-                source={imgSource(lastPhoto.photo)}
-                style={styles.photoThumb}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <View style={[styles.photoThumb, styles.photoThumbEmpty]}>
-                <Icon name="camera" size={20} color={color.textFaint} />
+                </BLText>
+                <BLText variant="meta" size={12} style={styles.nudgeSub}>
+                  Reorder before {pet.name} runs out
+                </BLText>
               </View>
-            )}
-            <View style={styles.photoText}>
-              <BLText variant="label" size={type.sm}>
-                How’s {pet.name} looking?
-              </BLText>
-              <BLText variant="meta" size={12} style={styles.photoSub}>
-                {daysSincePhoto == null
-                  ? 'Add your first progress photo'
-                  : daysSincePhoto === 0
-                    ? 'Last photo added today'
-                    : `Last photo ${daysSincePhoto} day${daysSincePhoto === 1 ? '' : 's'} ago`}
-              </BLText>
-            </View>
-            <Icon name="chevron-right" size={18} color={color.navy} />
-          </Card>
-        </Pressable>
-
-        {/* Health log */}
-        <Pressable onPress={() => router.push('/health')}>
-          <Card style={styles.photoNudge}>
-            <View style={[styles.photoThumb, styles.healthIcon]}>
-              <Icon name="clock" size={20} color={color.navy} />
-            </View>
-            <View style={styles.photoText}>
-              <BLText variant="label" size={type.sm}>
-                Health log
-              </BLText>
-              <BLText variant="meta" size={12} style={styles.photoSub}>
-                {pet.weights.length} weigh-in{pet.weights.length === 1 ? '' : 's'} ·{' '}
-                {pet.vetNotes.length} vet note{pet.vetNotes.length === 1 ? '' : 's'}
-              </BLText>
-            </View>
-            <Icon name="chevron-right" size={18} color={color.navy} />
-          </Card>
-        </Pressable>
+              <Icon name="chevron-right" size={18} color={color.navy} />
+            </Card>
+          </Pressable>
+        ) : nudge === 'photo' ? (
+          <Pressable onPress={() => router.push('/progress')}>
+            <Card style={styles.nudge}>
+              {lastPhoto ? (
+                <Image
+                  source={imgSource(lastPhoto.photo)}
+                  style={styles.nudgeThumb}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View style={styles.nudgeIcon}>
+                  <Icon name="camera" size={18} color={color.navy} />
+                </View>
+              )}
+              <View style={styles.nudgeText}>
+                <BLText variant="label" size={type.sm}>
+                  How’s {pet.name} looking?
+                </BLText>
+                <BLText variant="meta" size={12} style={styles.nudgeSub}>
+                  {daysSincePhoto == null
+                    ? 'Add your first progress photo'
+                    : `Last photo ${daysSincePhoto} days ago`}
+                </BLText>
+              </View>
+              <Icon name="chevron-right" size={18} color={color.navy} />
+            </Card>
+          </Pressable>
+        ) : null}
       </Page>
     </View>
   );
@@ -282,19 +274,19 @@ const styles = StyleSheet.create({
 
   petRow: { flexDirection: 'row', alignItems: 'center' },
   petPhoto: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: color.bgAlt,
     borderWidth: 3,
     borderColor: color.surface,
     ...shadow.sm,
   },
-  petPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
-  petText: { flex: 1, marginLeft: space.x4 },
+  petText: { flex: 1 },
+  petTextInset: { marginLeft: space.x4 },
   petName: { color: color.navy, marginTop: 1 },
 
-  doseCard: { marginTop: space.x6, overflow: 'hidden' },
+  doseCard: { marginTop: space.x5, overflow: 'hidden' },
   doseHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,8 +297,8 @@ const styles = StyleSheet.create({
   doseHeadText: { flex: 1 },
   doseProduct: { color: color.white, marginTop: 3 },
   doseImg: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: radius.sm,
     backgroundColor: color.white,
     marginLeft: space.x3,
@@ -330,54 +322,30 @@ const styles = StyleSheet.create({
   markBtnDone: { backgroundColor: color.successBg },
   markLabel: { marginLeft: space.x2, textTransform: 'uppercase' },
 
-  doseLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: space.x4,
+  streak: {
+    marginTop: space.x5,
+    paddingTop: space.x4,
+    borderTopWidth: 1,
+    borderTopColor: color.borderSoft,
   },
-
-  streakCard: { marginTop: space.x4 },
-  streakTop: { flexDirection: 'row', alignItems: 'center' },
-  streakFlame: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: color.warningBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakText: { flex: 1, marginLeft: space.x3 },
-  grid: { flexDirection: 'row', marginTop: space.x4, gap: 5 },
-  dot: { flex: 1, height: 26, borderRadius: 5 },
+  streakLine: { flexDirection: 'row', alignItems: 'center', gap: space.x2 },
+  streakText: { flex: 1, marginLeft: space.x1 },
+  grid: { flexDirection: 'row', marginTop: space.x3, gap: 4 },
+  dot: { flex: 1, height: 18, borderRadius: 4 },
   dotOn: { backgroundColor: color.success },
   dotOff: { backgroundColor: color.bgAlt, borderWidth: 1, borderColor: color.border },
   dotToday: { backgroundColor: color.warningBg, borderWidth: 2, borderColor: color.accent },
 
-  reorder: {
-    marginTop: space.x4,
-    flexDirection: 'row',
-    alignItems: 'center',
+  nudge: { marginTop: space.x4, flexDirection: 'row', alignItems: 'center' },
+  nudgeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: color.warningBg,
-  },
-  reorderText: { flex: 1 },
-  reorderSub: { marginTop: 2 },
-
-  photoNudge: { marginTop: space.x4, flexDirection: 'row', alignItems: 'center' },
-  photoThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.sm,
-    backgroundColor: color.bgAlt,
-  },
-  photoThumbEmpty: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: color.border,
-    borderStyle: 'dashed',
   },
-  healthIcon: { alignItems: 'center', justifyContent: 'center' },
-  photoText: { flex: 1, marginLeft: space.x3 },
-  photoSub: { marginTop: 2 },
+  nudgeThumb: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: color.bgAlt },
+  nudgeText: { flex: 1, marginLeft: space.x3 },
+  nudgeSub: { marginTop: 2 },
 });
