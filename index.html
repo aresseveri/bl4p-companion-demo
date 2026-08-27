@@ -3,35 +3,146 @@
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <!--
+      viewport-fit=cover is what makes safe-area insets work on notched
+      iPhones. maximum-scale stops Safari zooming the page when a text input
+      is focused, which otherwise breaks the phone-app illusion.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, shrink-to-fit=no"
+    />
+
     <title>BestLife4Pets</title>
-    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+
+    <!-- Home-screen install on iOS: opens without Safari chrome. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="BestLife4Pets" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Her page ground, so the status bar and overscroll match the app. -->
+    <meta name="theme-color" content="#FCFAF9" />
+
+    <!--
+      Her real brand fonts, served from her own CDN rather than bundled.
+
+      Futura and Helvetica Neue are commercial faces she licenses and
+      self-hosts. Loading them from bestlife4pets.com means this demo never
+      redistributes the font binaries, which shipping them inside a public
+      repo would. Her CDN returns `access-control-allow-origin: *` on these,
+      so cross-origin loading works.
+
+      Family names MUST match `font` in src/constants/theme.ts.
+    -->
+    <link rel="preconnect" href="https://www.bestlife4pets.com" crossorigin />
+    <style id="bl4p-brand-fonts">
+      @font-face {
+        font-family: 'Futura';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/Futura-Book.woff2?v=1765861963')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'FuturaMedium';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/Futura_2fb4d718-e5ea-4d7a-acf1-df266ca61c7e.woff2?v=1765861964')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'FuturaBold';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/Futura-Bold.woff2?v=1765861228')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'FuturaBlack';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/FuturaBlack.woff2?v=1765861963')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'HelveticaNeue';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/HelveticaNeue-Roman.woff2?v=1765457358')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'HelveticaNeueBold';
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/shop/files/HelveticaNeue-Bold.woff2?v=1765457285')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'Jost';
+        font-weight: 500;
+        font-display: swap;
+        src: url('https://www.bestlife4pets.com/cdn/fonts/jost/jost_n5.7c8497861ffd15f4e1284cd221f14658b0e95d61.woff2')
+          format('woff2');
+      }
+    </style>
+
+    <!-- react-native-web's recommended reset. -->
     <style id="expo-reset">
-      /* These styles make the body full-height */
       html,
       body {
         height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
       }
-      /* These styles make the root element full-height */
       #root {
         display: flex;
         height: 100%;
         flex: 1;
       }
     </style>
-  <link rel="icon" href="/bl4p-companion-demo/favicon.ico"/><link rel="preload" href="/bl4p-companion-demo/_expo/static/css/global-a660cd3972905cdb9c1ec190c2525d05.css" as="style">
-<link rel="stylesheet" href="/bl4p-companion-demo/_expo/static/css/global-a660cd3972905cdb9c1ec190c2525d05.css"></head>
+
+    <style id="bl4p-shell">
+      html,
+      body {
+        background-color: #fcfaf9;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
+        /* Long-press should read as an app, not a web page. */
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      input,
+      textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      /* Keep the app phone-width when she opens the link on a laptop. */
+      @media (min-width: 560px) {
+        #root {
+          max-width: 440px;
+          margin: 0 auto;
+          box-shadow: 0 5px 30px rgb(26 26 26 / 0.1);
+          background: #fcfaf9;
+        }
+      }
+      :focus:not(:focus-visible) {
+        outline: none;
+      }
+    </style>
+  <link rel="icon" href="/bl4p-companion-demo/favicon.ico"/><link rel="preload" href="/bl4p-companion-demo/_expo/static/css/global-d41d8cd98f00b204e9800998ecf8427e.css" as="style">
+<link rel="stylesheet" href="/bl4p-companion-demo/_expo/static/css/global-d41d8cd98f00b204e9800998ecf8427e.css"></head>
 
   <body>
-    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
-    <noscript>
-      You need to enable JavaScript to run this app.
-    </noscript>
-    <!-- The root element for your Expo app. -->
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   <script src="/bl4p-companion-demo/_expo/static/js/web/entry-2eb580f63cdd80af676d71f98e44762e.js" defer></script>
 </body>
